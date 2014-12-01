@@ -1,0 +1,163 @@
+<h1>Minimiser les téléchargements de fontes</h1>
+
+<p>Optimiser les fontes est un exercice difficile sur les sites d'envergure.  Il existe une solution simple à mettre en œuvre, même si seuls certains navigateurs la prennent en charge.</p>
+
+<h2>Les fontes peuvent peser lourd</h2>
+
+<p>Très lourd.  Ça peut aller de 70Ko à plusieurs méga-octers (compressés évidemment, car pourquoi s’en passer ?).  Vous voulez du gras ?  Eh bien, il suffit de doubler la taille.  Des italiques ?  Allez, on triple.  Gras et italique ?  On quadruple.  C’est un sujet critique si ces fontes bloquent l'affichage du contenu principal, ce qui est souvent le cas.</p>
+
+<p>Utiliser des sous-ensembles de la fonte permet de gagner pas mal de place en retirant tous les caractères dont vous n'avez pas besoin.  Ça permet généralement de ramener la fonte sous les 50Ko.</p>
+
+<p>Mais quels caractères conserver ?  C'est assez difficile à déterminer si votre site a beaucoup de contenu, ou si les utilisateurs peuvent y créer du contenu.  Si des caractères hors du sous-ensemble sont utilisés, ils auront recours à une police de substitution, ce qui peut être super moche.</p>
+
+<style>
+  @font-face {
+    font-family: montserrat-custom;
+    src: url('http://themes.googleusercontent.com/licensed/font?kit=z2n1Sjxk9souK3HCtdHukrNhCmVpBOQ2WMJkEJKYByGbbUIe-aJh71RSrCgHW3wA') format('woff');
+    font-weight: normal;
+  }
+</style>
+
+<figure class="full-figure" style="background: #eee">
+  <div style="text-align:center; font-family: montserrat-custom, sans-serif; font-size: 3.6rem; margin: 0">Cohérent</div>
+  <figcaption>Remarquez comme le « é » utilise une fonte différente du « e »</figcaption>
+</figure>
+
+<p>Vous pouvez soit tolérer cette laideur occasionnelle, soit être conservateurs dans vos sous-ensembles, ce qui vous ramène à des téléchargements lourds de fonte.</p>
+
+<p>Mais il existe une meilleure solution !</p>
+
+<h2>Laissez tout bêtement le navigateur s'en occuper</h2>
+
+<p>Déterminez à la louche les caractères employés par la majorité de vos pages, faites un sous-ensemble, puis créez une autre ressource contenant les caractères additionnels :</p>
+
+<div class="codehilite"><pre>
+/* Petit sous-ensemble, graisse = normal */
+@font-face {
+  font-family: whatever;
+  src: url('reg-subset.woff') format('woff');
+  unicode-range: U+0-A0;
+  font-weight: normal;
+}
+/* Grand sous-ensemble, graisse = normal */
+@font-face {
+  font-family: whatever;
+  src: url('reg-extended.woff') format('woff');
+  unicode-range: U+A0-FFFF;
+  font-weight: normal;
+}
+/* Petit sous-ensemble, graisse = gras */
+@font-face {
+  font-family: whatever;
+  src: url('bold-subset.woff') format('woff');
+  unicode-range: U+0-A0;
+  font-weight: bold;
+}
+/* Grand sous-ensemble, graisse = gras */
+@font-face {
+  font-family: whatever;
+  src: url('bold-extended.woff') format('woff');
+  unicode-range: U+A0-FFFF;
+  font-weight: bold;
+}
+/* Et utilisons la police : */
+p {
+  font-family: whatever, serif;
+}
+</pre></div>
+
+<p>Le code ci-dessus contient de multiples définitions de fontes pour la même police, mais avec des graisses (<code>font-weight</code>) et sous-ensembles (<code>unicode-range</code>) distinctes. L'intervalle unicode <code>U+0-A0</code> recouvre les glyphes basiques de lettres, nombres et ponctuations.  Le navigateur sait ainsi qu'un glyphe « e » gras est disponible dans <code>bold-subset.woff</code>, alors qu'un « é » de graisse normale sera dans <code>reg-extended.woff</code>.</p>
+
+<p>Un navigateur peut choisir intelligemment à l'aide de ces infos pour ne télécharger que le minimum requis pour afficher la page.  Si la page utilise des caractères hors de ce sous-ensemble, la fonte supplémentaire est téléchargée en parallèle.</p>
+
+<p>Cela ne vous dispense pas de fournir une fonte de substitution adaptée au cas où la vôtre ne peut pas être téléchargée à temps, ou si le navigateur n'en comprend pas le format.</p>
+
+<h2>Demo</h2>
+
+<p><a href="/demos/font-subsetting/">Voyez plutôt</a>.</p>
+
+<p>Idéalement, le navigateur ne devrait télécharger au départ que la ressource normale pour le sous-ensemble.  Mais dès que vous éditez le texte pour inclure, par exemple, « ö », le navigateur va télécharger la fonte supplémentaire.</p>
+
+<h2>Prise en charge par les navigateurs</h2>
+
+<p>OK, à présent les mauvaises nouvelles :</p>
+
+<ul>
+  <li><strong>Safari</strong> : télécharge toutes les fontes</li>
+  <li><strong>Internet Explorer</strong> : télécharge également toutes les fontes</li>
+  <li><strong>Firefox</strong> : ne télécharge qu’une fonte, mais pas la bonne, ce qui laisse tout pété</li>
+  <li><strong>Chrome</strong> : s’y prend bien, et ne télécharge au départ que la fonte normale du sous-ensemble</li>
+  <li><strong>Opera</strong> : pareil que Chrome</li>
+</ul>
+
+<p>C’est vraiment dommage pour IE et Safari, qui se retrouvent à télécharger 300Ko au lieu de 30Ko dans cet exemple.  C'est encore bien pire si on rajoute de l'italique et du gras-italique, car IE et Safari les téléchargeront aussi, même si nous ne nous en servons pas.</p>
+
+<h3>À quoi il joue, Firefox ?</h3>
+
+<figure class="full-figure" style="background: #eee; overflow: hidden;">
+  <img src="http://com.jakearchibald.s3.amazonaws.com/posts/font-subsetting/firefox.91cd7fb081b6.png" alt="" style="max-width: 337px; margin: 11px auto; width: 100%">
+  <figcaption>Firefox affiche ça mal</figcaption>
+</figure>
+
+<p>Firefox gère bien le <code>font-weight</code>, il ne télécharge que ce que la page utilise, malheureusement il ignore le <code>unicode-range</code>. La déclaration de fonte « reg-extended » écrase celle en « reg-subset », mais seulement grâce à l'ordre du code source. « reg-extended » est utilisée pour afficher la page, mais elle ne contient pas tous les caractères, alors on utilise une fonte de substitution. Naturellement, « sans-serif » aurait fait une substitution plus acceptable ici, mais je voulais mettre le problème bien en évidence.</p>
+
+<p>Et s'il s'agit justement de la fonte étendue, comment se fait-il que <em>la plupart</em> des caractères soient affichés correctement ?  On ne s'attend pas à ce que « o » fasse partie de l'ensemble étendu, et pourtant il y figure.  Pour des raisons d'efficacité de stockage, au sein de la fonte, <code>ö</code> est une combinaison des glyphes <code>o</code> et <code>¨</code>. Même si nous ne voulions pas conserver le « o » dans la fonte étendue, il y figure car d'autres glyphes en dépendent.</p>
+
+<figure class="full-figure" style="background: #eee; overflow: hidden;">
+  <img src="http://com.jakearchibald.s3.amazonaws.com/posts/font-subsetting/e.bfac9e8e5a7c.png" alt="" style="max-width: 353px; margin: 3px auto; width: 100%">
+  <figcaption>La théorie de réutilisation des glyphes selon Einstein</figcaption>
+</figure>
+
+<p>Aucun glyphe ne réutilise « F » ou « b », et du coup ils ne figurent pas dans la fonte étendue.</p>
+
+<p>Firefox ne prête aucune attention au <code>unicode-range</code>.  Tout en fournissant des informations pour les téléchargements, <code>unicode-range</code> détermine quels caractères le navigateur va utiliser dans la fonte, même si elle en contient d'autres.</p>
+
+<p>On peut contourner le problème avec Firefox en incluant tous les glyphes dans les fontes listées en dernier dans vos sous-ensembles (« reg-extended » et « bold-extended » dans notre cas), ou en séparant les sous-ensembles en différentes familles de fontes :</p>
+
+<div class="codehilite"><pre>
+/* Petit sous-ensemble, graisse = normal */
+@font-face {
+  font-family: whatever;
+  src: url('reg-subset.woff') format('woff');
+  unicode-range: U+0-A0;
+  font-weight: normal;
+}
+/* Grand sous-ensemble, graisse = normal */
+@font-face {
+  font-family: whatever-extended;
+  src: url('reg-extended.woff') format('woff');
+  unicode-range: U+A0-FFFF;
+  font-weight: normal;
+}
+/* Et utilisons la police : */
+p {
+  font-family: whatever, whatever-extended, serif;
+}
+</pre></div>
+
+<p>
+  <a href="/demos/font-subsetting/two-families.html">Voici une démo de ça</a>.
+  Firefox télécharge quand même les deux fontes, qu'on en ait besoin ou non, mais au moins l'affichage est correct.
+</p>
+
+<h2>Exigez que ça soit corrigé !</h2>
+
+<p>Quand ça marche, c'est une super fonctionnalité, surtout pour les sites qui gèrent une variété de langues, qui autorisent leurs utilisateurs à ajouter leur propre contenu, ou simplement qui veulent télécharger cette fonte avec la super perluette de temps en temps.  Si vous trouvez ça utile, alors dites-le aux créateurs des navigateurs (en incluant votre cas d'utilisation) :</p>
+
+<ul>
+  <li><strong>Safari</strong> : <a href="https://bugs.webkit.org/show_bug.cgi?id=113715">Download only needed weights</a>, <a href="https://bugs.webkit.org/show_bug.cgi?id=42154">Download only needed ranges</a></li>
+  <li><strong>Internet Explorer</strong> : <a href="https://connect.microsoft.com/IE/feedbackdetail/view/949871/">Download only needed weights</a>, <a href="https://connect.microsoft.com/IE/feedbackdetail/view/789754">Download only needed ranges</a> — l'année dernière ils disaient n'avoir aucune intention d'implémenter ça, espérons qu'ils changeront d'avis</li>
+  <li><strong>Firefox</strong> : <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=475891">Support <code>unicode-range</code></a></li>
+</ul>
+
+<h2>Et entre-temps</h2>
+
+<p>Si vous servez déjà une fonte lourde, réfléchissez à la découper en fichiers multiples avec des <code>unicode-range</code> distincts.  Utilisez à chaque fois une <code>font-family</code> distincte pour contourner le problème de Firefox.</p>
+
+<p>IE, Firefox et Safari téléchargeront plus que ce dont ils ont besoin, mais seulement l'équivalent du gros fichier de fonte que vous aviez avant.  Les utilisateurs de Chrome et Opera bénéficieront d'une expérience plus rapide, et avec un peu de chance les autres navigateurs suivront.</p>
+
+<h2>À lire sur ce sujet</h2>
+
+<ul>
+  <li><a href="https://gist.github.com/sergejmueller/cf6b4f2133bcb3e2f64a">WOFF2</a> - pris en charge par Chrome et Opera, réduit la taille des fichiers de fonte d'environ 20% supplémentaires</li>
+</ul>
